@@ -1,0 +1,8 @@
+README.md
+setup.py
+pyTexecom/__init__.py
+pyTexecom/texecom.py
+pyTexecom.egg-info/PKG-INFO
+pyTexecom.egg-info/SOURCES.txt
+pyTexecom.egg-info/dependency_links.txt
+pyTexecom.egg-info/top_level.txt

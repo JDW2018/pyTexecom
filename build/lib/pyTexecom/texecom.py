@@ -1,53 +1,54 @@
 import asyncio
 import logging
 
-_LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 REQUIREMENTS = ['pyserial-asyncio==0.4']
 
-class TexecomPanelInterface:
+class TexecomPanelInterface(Entity):
     """Representation of a Texecom Panel Interface."""
 
-    def __init__(self, name, port, panelType,logger,eventloop):
+    def __init__(self, name, port, panelType):
         """Initialize the Texecom Panel Interface."""
         self._name = name
         self._state = None
         self._port = port
         self._baudrate = '19200'
-        self._loop_task = eventloop
-        self.serial_loop_task = None
+        self._serial_loop_task = None
         self._panelType = panelType
-        self._error = 'false'
-
-        _LOGGER =logger
+        self._error = false
 
         if self._panelType == '24':
-            self._maxZones = 24
-            self._maxAreas = 2
+            self._maxZones = '24'
+            self._maxAreas = '2'
         elif self._panelType == '48':
-            self._maxZones = 48
-            self._maxAreas = 4
+            self._maxZones = '48'
+            self._maxAreas = '4'
         elif self._panelType == '88':
-            self._maxZones = 88
-            self._maxAreas = 1
+            self._maxZones = '88'
+            self._maxAreas = '1'
         elif self._panelType == '168':
-            self._maxZones = 168
-            self._maxAreas = 1
+            self._maxZones = '168'
+            self._maxAreas = '1'
         else:
             _LOGGER.info('Incorrect panel type configured: %s', self._panelType)
 
-        self._alarmState = ['0'] * self._maxZones
+        self._alarmState = [self._maxZones]
 
         self._zoneStateChangeCallback = self._defaultCallback
 
 
         _LOGGER.info('Texecom panel interface initalised: %s', name)
 
+
+    @asyncio.coroutine
     def start(self):
         """Handle when an entity is about to be added to Home Assistant."""
         _LOGGER.info('Setting up Serial Connection to port: %s', self._port)
 
-        self._serial_loop_task = self._loop_task.create_task(self.serial_read(self._port, self._baudrate))
+        self._serial_loop_lask = asynio.get_event_loop()
+        self._serial_loop_task.create_task(self.serial_read(self._port, self._baudrate))
+        self._serial_loop_task.run_forever()
 
     @asyncio.coroutine
     def serial_read(self, device, rate, **kwargs):
@@ -70,17 +71,17 @@ class TexecomPanelInterface:
                     state = line[5]
                     _LOGGER.info('Signalled Zone: %s', zone)
                     _LOGGER.info('Zone State: %s', state)
-                    self._alarmState[int(zone)] = state
-                    _LOGGER.debug('Loaded Data: %s', self._alarmState[int(zone)])
-                    self.callback_zone_state_change(self._alarmState)
+                    self._alarmState[zone] = state
+                    callback_zone_state_change(self._alarmState)
 
             except IndexError:
                 _LOGGER.error('Index error malformed string recived')
 
-    def stop(self):
+    @asyncio.coroutine
+    def stop stop(self):
         """Close resources."""
-        if self.serial_loop_task:
-            self.serial_loop_task.cancel()
+        if self._serial_loop_task:
+            self._serial_loop_task.stop()
 
     @property
     def name(self):

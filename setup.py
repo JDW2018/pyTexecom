@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="pyTexecom",
-    version="0.0.1",
+    version="0.1.5",
     author="James Drew Williams",
     author_email="james@jmtechnical.co.uk",
     description="Texecom Interface Libary",
