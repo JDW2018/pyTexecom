@@ -3,7 +3,7 @@ import logging
 
 LOGGER = logging.getLogger(__name__)
 
-
+REQUIREMENTS = ['pyserial-asyncio==0.4']
 
 class TexecomPanelInterface(Entity):
     """Representation of a Texecom Panel Interface."""
@@ -17,8 +17,6 @@ class TexecomPanelInterface(Entity):
         self._serial_loop_task = None
         self._panelType = panelType
         self._error = false
-        self.signalledzone = '0'
-        self.zonestate = '0'
 
         if self._panelType == '24':
             self._maxZones = '24'
@@ -35,23 +33,29 @@ class TexecomPanelInterface(Entity):
         else:
             _LOGGER.info('Incorrect panel type configured: %s', self._panelType)
 
+        self._alarmState = [self._maxZones]
+
+        self._zoneStateChangeCallback = self._defaultCallback
+
+
         _LOGGER.info('Texecom panel interface initalised: %s', name)
 
 
  @asyncio.coroutine
     def start(self):
         """Handle when an entity is about to be added to Home Assistant."""
-        _LOGGER.info('Setting up Serial Connection to port: %s', self._port,) 
-        self._serial_loop_task = self.hass.loop.create_task(
-            self.serial_read(self._port, self._baudrate))
+        _LOGGER.info('Setting up Serial Connection to port: %s', self._port)
+
+        self._serial_loop_lask = asynio.get_event_loop()
+        self._serial_loop_task.create_task(self.serial_read(self._port, self._baudrate))
+        self._serial_loop_task.run_forever()
 
  @asyncio.coroutine
     def serial_read(self, device, rate, **kwargs):
         """Read the data from the port."""
         import serial_asyncio
         _LOGGER.info('Opening Serial Port')
-        reader, _ = yield from serial_asyncio.open_serial_connection(
-            url=device, baudrate=rate, **kwargs)
+        reader, _ = yield from serial_asyncio.open_serial_connection(url=device, baudrate=rate, **kwargs)
         _LOGGER.info('Opened Serial Port')
         while True:
             line = yield from reader.readline()
@@ -62,14 +66,13 @@ class TexecomPanelInterface(Entity):
             try:
                 if line[1] == 'Z':
                     _LOGGER.debug('Zone Info Found')
-                    signalledzone = line[2:5]
-                    signalledzone = signalledzone.lstrip('0')
-                    zonestate = line[5]
-                    _LOGGER.info('Signalled Zone: %s', signalledzone)
-                    _LOGGER.info('Zone State: %s', zonestate)
-                    self.zonestate = zonestate
-                    self.signalledzone = signalledzone
-                    async_dispatcher_send(self.hass, SIGNAL_ZONE_UPDATE, self)
+                    zone = line[2:5]
+                    zone = zone.lstrip('0')
+                    state = line[5]
+                    _LOGGER.info('Signalled Zone: %s', zone)
+                    _LOGGER.info('Zone State: %s', state)
+                    self._alarmState[zone] = state
+                    callback_zone_state_change(self._alarmState)
 
             except IndexError:
                 _LOGGER.error('Index error malformed string recived')
@@ -78,7 +81,7 @@ class TexecomPanelInterface(Entity):
     def stop stop(self):
         """Close resources."""
         if self._serial_loop_task:
-            self._serial_loop_task.cancel()
+            self._serial_loop_task.stop()
 
     @property
     def name(self):
@@ -91,8 +94,18 @@ class TexecomPanelInterface(Entity):
         return False
 
     @property
-    def state(self):
+    def error(self):
         """Return the state of the sensor."""
-        return self._state
+        return self._error
 
+    @property
+    def callback_zone_state_change(self):
+        return self._zoneStateChangeCallback
 
+    @callback_zone_state_change.setter
+    def callback_zone_state_change(self, value):
+        self._zoneStateChangeCallback = value
+
+    def _defaultCallback(self, data):
+        """This is the callback that occurs when the client doesn't subscribe."""
+        _LOGGER.debug("Callback has not been set by client.")	    
